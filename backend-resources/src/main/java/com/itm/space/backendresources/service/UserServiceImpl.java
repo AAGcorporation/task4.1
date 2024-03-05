@@ -35,7 +35,10 @@ public class UserServiceImpl implements UserService {
         CredentialRepresentation password = preparePasswordRepresentation(userRequest.getPassword());
         UserRepresentation user = prepareUserRepresentation(userRequest, password);
         try {
-            Response response = keycloakClient.realm(realm).users().create(user);
+            Response response = keycloakClient
+                    .realm(realm)
+                    .users()
+                    .create(user);
             String userId = CreatedResponseUtil.getCreatedId(response);
             log.info("Created UserId: {}", userId);
         } catch (WebApplicationException ex) {
