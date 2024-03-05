@@ -78,7 +78,6 @@ public class UserServiceImplTest extends BaseIntegrationTest {
                 .status(Response.Status.CREATED)
                 .location(new URI("user_id"))
                 .build();
-
         when(usersResourceTest.create(any()))
                 .thenReturn(responseTest);
         userServiceTest.createUser(userRequestTest);

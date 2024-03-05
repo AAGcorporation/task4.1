@@ -1,145 +1,81 @@
 package com.itm.space.backendresources.controllerTests;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itm.space.backendresources.BaseIntegrationTest;
 import com.itm.space.backendresources.api.request.UserRequest;
-import com.itm.space.backendresources.api.response.UserResponse;
-import com.itm.space.backendresources.mapper.UserMapper;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.resource.RealmResource;
-import org.keycloak.admin.client.resource.RoleMappingResource;
-import org.keycloak.admin.client.resource.UserResource;
-import org.keycloak.admin.client.resource.UsersResource;
-import org.keycloak.representations.idm.GroupRepresentation;
-import org.keycloak.representations.idm.MappingsRepresentation;
-import org.keycloak.representations.idm.RoleRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MvcResult;
 
-import javax.ws.rs.core.Response;
-import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.keycloak.util.JsonSerialization.mapper;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 
-@WithMockUser(username = "test_name", password = "test_pass", authorities = "ROLE_MODERATOR")
 public class UserControllerTest extends BaseIntegrationTest {
 
-    @MockBean
-    Keycloak keycloakClientTest;
-
-    @MockBean
-    RealmResource realmResourceTest;
-
-    @MockBean
-    UsersResource usersResourceTest;
-
-    @MockBean
-    Response responseTest;
-
-    @SpyBean
-    UserMapper userMapperTest;
-    @MockBean
-    UserRepresentation userRepresentationTest;
-    @MockBean
-    List<RoleRepresentation> userRolesTest;
-    @MockBean
-    List<GroupRepresentation> userGroupsTest;
-    @MockBean
-    UserResource userResourceTest;
-    @MockBean
-    RoleMappingResource roleMappingResourceTest;
-    @MockBean
-    MappingsRepresentation mappingsRepresentationTest;
+    @Autowired
+    ObjectMapper objectMapper;
 
     @Test
-    void createUserTest() throws Exception {
+    @DisplayName("Тестирование post метода create контроллера UserController - вернет 200")
+    @WithMockUser(username = "Admin", password = "2014", authorities = "ROLE_MODERATOR")
+    void createShouldReturnStatus200() throws Exception {
 
-        when(keycloakClientTest.realm(anyString()))
-                .thenReturn(realmResourceTest);
-        when(realmResourceTest.users())
-                .thenReturn(usersResourceTest);
+        UserRequest userRequest = new UserRequest("Nagibator", "navalniy@gmail.com",
+                "1488", "Aleksei", "Navalniy");
 
-        UserRequest userRequestTest = new UserRequest("TestUserName", "test@gmail.com",
-                "tests", "TestFirstName", "TestLastName");
+        String jsonRequest = objectMapper.writeValueAsString(userRequest);
 
-        Response responseTest = Response
-                .status(Response.Status.CREATED)
-                .location(new URI("user_id"))
-                .build();
-
-        when(keycloakClientTest.realm(anyString()).users().create(any()))
-                .thenReturn(responseTest);
-
-        mvc.perform(requestWithContent(post("/api/users"), userRequestTest));
-
-        verify(usersResourceTest, times(1)).create(any());
+        mvc.perform(post("/api/users")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isOk());
     }
 
     @Test
-    public void testGetUserById() {
-        try {
-            UUID randomUUID = UUID.randomUUID();
-            UserRepresentation userRepresentationTest = new UserRepresentation();
-            userRepresentationTest.setId(String.valueOf(randomUUID));
-            userRepresentationTest.setFirstName("TestFirstName");
-            userRepresentationTest.setLastName("TestLastName");
-            userRepresentationTest.setEmail("test@gmail.com");
+    @DisplayName("Тестирование get метода getUserById контроллера " +
+            "UserController - вернет 200, если пользователь существует")
+    @WithMockUser(username = "Admin", password = "2014", authorities = "ROLE_MODERATOR")
+    void getUserByIdShouldReturnStatus200() throws Exception {
+        UUID userId = UUID.fromString("892274cc-7fed-4639-aad8-862c89c4040f");
 
-            when(keycloakClientTest.realm(anyString()))
-                    .thenReturn(realmResourceTest);
-            when(realmResourceTest.users())
-                    .thenReturn(usersResourceTest);
-            when(usersResourceTest.get(String.valueOf(randomUUID)))
-                    .thenReturn(userResourceTest);
-            when(userResourceTest.toRepresentation())
-                    .thenReturn(userRepresentationTest);
-            when(userResourceTest.roles())
-                    .thenReturn(roleMappingResourceTest);
-            when(roleMappingResourceTest.getAll())
-                    .thenReturn(mappingsRepresentationTest);
-            when(mappingsRepresentationTest.getRealmMappings())
-                    .thenReturn(userRolesTest);
-            when(userResourceTest.groups())
-                    .thenReturn(userGroupsTest);
-
-            MvcResult result = mvc.perform(get("/api/users/{id}", randomUUID))
-                    .andExpect(status().isOk())
-                    .andReturn();
-
-            UserResponse userResponseTest = mapper.readValue(result.getResponse().getContentAsString(), UserResponse.class);
-
-            assertEquals("TestFirstName", userResponseTest.getFirstName());
-            assertEquals("TestLastName", userResponseTest.getLastName());
-            assertEquals("test@gmail.com", userResponseTest.getEmail());
-
-            verify(keycloakClientTest.realm(anyString()).users(), times(1)).get(any());
-        } catch (Exception e) {
-        }
-    }
-
-
-    @Test
-    public void helloTest() throws Exception {
-        MvcResult resultMvc = mvc.perform(get("/api/users/hello"))
+        mvc.perform(get("/api/users/{id}", userId.toString())
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andReturn();
+                .andExpect(jsonPath("$.email").value("navalniy@gmail.com"))
+                .andExpect(jsonPath("$.firstName").value("Aleksei"))
+                .andExpect(jsonPath("$.lastName").value("Navalniy"));
+    }
 
-        String responseContent = resultMvc.getResponse().getContentAsString();
-        assertEquals("test_name", responseContent);
+    @Test
+    @DisplayName("Тестирование get метода getUserById контроллера " +
+            "UserController - вернет 500, при NotFoundException, пользователь не существует")
+    @WithMockUser(username = "Admin", password = "2014", authorities = "ROLE_MODERATOR")
+    void getUserByIdShouldReturnStatus500() throws Exception {
+        UUID incorrectUUID = UUID.fromString("892274cc-7fed-4639-aad8-862c89c4440f");
+
+        mvc.perform(get("/api/users/{id}", incorrectUUID.toString())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    @DisplayName("Тестирование get метода hello контроллера " +
+            "UserController - вернет 200 и Id пользователя")
+    @WithMockUser(username = "Admin", password = "2014", authorities = "ROLE_MODERATOR")
+    void helloByIdShouldReturnStatus200() throws Exception {
+
+        mvc.perform(get("/api/users/hello")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Admin"));
     }
 }
